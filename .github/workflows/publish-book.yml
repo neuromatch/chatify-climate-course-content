@@ -9,14 +9,17 @@ env:
   NMA_REPO: climate-course-content
   NMA_MAIN_BRANCH: main
   PREREQ_INTRO: ClimateScience
+  CHATIFY: true
+  SOURCE_REPO: climate-course-content
+  MOD_REPO: chatify-climate-course-content
   
   ORG: neuromatch
 
 # This job installs dependencies, build the book, and pushes it to `gh-pages`
 jobs:
   build-books-and-deploy:
-    runs-on: climate_runner
-    # runs-on: ubuntu-latest
+    # runs-on: climate_runner
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -35,6 +38,23 @@ jobs:
         with:
           force_env_update: 'false'
 
+      - name: Install Chatify, Add to Notebooks, Commit Changes
+        if: env.CHATIFY == 'true'
+        run: |
+          pip install -r ci/chatify/requirements.txt
+          python ci/chatify/process_notebooks.py
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add '**/student/*.ipynb'
+          git diff-index --quiet HEAD || git commit -m "Add chatify to student tutorial notebooks"
+
+      - name: Push Chatify Changes to Main
+        uses: ad-m/github-push-action@v0.6.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
+          force: false
+
       # Cache not currently working. May conflict with Cache in setup
       # Unsure if the cache in setup works properly either
       # - name: Cache Jupyter Build Artifacts
@@ -52,7 +72,7 @@ jobs:
           # TODO: get this working with a general CI
           # python ci/generate_book_climate.py student
           python ci/generate_book.py student
-          jupyter-book toc migrate /home/runner/work/climate-course-content/climate-course-content/book/_toc.yml -o /home/runner/work/climate-course-content/climate-course-content/book/_toc.yml
+          jupyter-book toc migrate /home/runner/work/chatify-climate-course-content/chatify-climate-course-content/book/_toc.yml -o /home/runner/work/chatify-climate-course-content/chatify-climate-course-content/book/_toc.yml
           ln -s ../tutorials book/tutorials
           ln -s ../projects book/projects
           # ln -s ../prereqs book/prereqs
@@ -65,7 +85,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          ghp-import -n -c "comptools.climatematch.io" -m "Update course book" book/_build/html
+          ghp-import -n -c "chatify.comptools.climatematch.io" -m "Update course book" book/_build/html
           git checkout -f gh-pages
       
       - name: Publish to gh-pages
